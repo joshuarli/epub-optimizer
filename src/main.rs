@@ -49,15 +49,20 @@ fn main() {
     // TODO: validate extension is at least epub jsut to guard against accidental unzipping
     //       we could also additionally check for the manifest after unzipping to be even more correct
     // TODO: let's give better error feedback here
-    let old_size_kib = fs::metadata(&path).unwrap().len() / 1024;
+    let old_size_bytes = fs::metadata(&path).unwrap().len();
     let tmp = unzip(&path);
     minify(&tmp, &verbose);
     gen_epub(&path, &tmp);
     // TODO: register this at exit. how did tempdir crate do this?
     fs::remove_dir_all(&tmp).unwrap();
 
-    let new_size_kib = fs::metadata(&path).unwrap().len() / 1024;
-    println!("{}: {} KiB saved.", path, old_size_kib - new_size_kib);
+    let new_size_bytes = fs::metadata(&path).unwrap().len();
+    println!(
+        "{}: {} KiB ({:.2}%) saved.",
+        path,
+        (old_size_bytes - new_size_bytes) / 1024,
+        100 * (old_size_bytes - new_size_bytes) / old_size_bytes
+    );
 }
 
 fn mktmpdir() -> PathBuf {
@@ -108,7 +113,7 @@ fn minify(tmpdir: &PathBuf, verbose: &bool) {
         }
         let ext = ext.unwrap();
 
-        let old_size_kib = metadata.len() / 1024;
+        let old_size_bytes = metadata.len();
         match ext.to_str().unwrap() {
             "opf" | "xml" | "html" | "htm" => {
                 Command::new("minify")
@@ -151,13 +156,13 @@ fn minify(tmpdir: &PathBuf, verbose: &bool) {
 
         if *verbose {
             let new_metadata = entry.metadata().unwrap();
-            let new_size_kib = new_metadata.len() / 1024;
+            let new_size_bytes = new_metadata.len();
             println!(
-                "{} {} KiB -> {} KiB (saved {} KiB)",
+                "{} {} KiB -> {} KiB ({:.2}% smaller)",
                 path.display(),
-                old_size_kib,
-                new_size_kib,
-                old_size_kib - new_size_kib
+                old_size_bytes / 1024,
+                new_size_bytes / 1024,
+                100 * (old_size_bytes - new_size_bytes) / old_size_bytes,
             );
             io::stdout().flush().unwrap();
         }
