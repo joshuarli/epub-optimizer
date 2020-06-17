@@ -17,11 +17,6 @@ fn main() {
     let matches = App::new("epub-optimizer")
         .about("A command-line app that optimizes and edits metadata of .epub files")
         .arg(
-            Arg::with_name("no-optimize")
-                .help("Disables optimization")
-                .long("no-optimize"),
-        )
-        .arg(
             Arg::with_name("files")
                 .help("List of files to optimize")
                 .required(true)
@@ -29,31 +24,23 @@ fn main() {
         )
         .get_matches();
 
-    let optimize = !matches.is_present("no-optimize");
-
     let mut bytes_saved: i64 = 0;
     for path in matches.values_of("files").unwrap() {
         println!("{}:", path);
         let original_len = fs::metadata(path).unwrap().len() as i64;
-        process(path, optimize);
+        process(path);
         let optimized_len = fs::metadata(path).unwrap().len() as i64;
         bytes_saved += original_len - optimized_len;
 
         println!();
     }
 
-    if optimize {
-        println!("{}KiB saved in total.", bytes_saved / 1024);
-    } else {
-        println!("Done.")
-    }
+    println!("{}KiB saved in total.", bytes_saved / 1024);
 }
 
-fn process(path: &str, optimize: bool) {
+fn process(path: &str) {
     let tmp = unzip(path);
-    if optimize {
-        minify(&tmp);
-    }
+    minify(&tmp);
     gen_epub(path, &tmp);
 }
 
