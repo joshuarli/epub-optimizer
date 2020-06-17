@@ -78,7 +78,7 @@ fn unzip(path: &str) -> tempfile::TempDir {
     let tmp = tempfile::tempdir().unwrap();
     for i in 0..zip.len() {
         let mut input = zip.by_index(i).unwrap();
-        if input.name().ends_with("/") {
+        if input.name().ends_with('/') {
             continue;
         }
         let input_path = input.sanitized_name();
@@ -109,7 +109,8 @@ fn mod_metadata(tmp: &tempfile::TempDir) {
     let file = File::open(format!(
         "{}/META-INF/container.xml",
         tmp.path().to_str().unwrap()
-    )).unwrap();
+    ))
+    .unwrap();
     let doc = xmltree::Element::parse(file).unwrap();
     let opf = &doc
         .get_child("rootfiles")
@@ -155,7 +156,7 @@ fn mod_metadata(tmp: &tempfile::TempDir) {
                 }
             } else {
                 let key = &child.name;
-                let val = &child.text.clone().unwrap_or(String::new());
+                let val = &child.text.clone().unwrap_or_default();
                 let val = val.clone();
                 println!("{}: {}", key, val);
                 match key.as_str() {
@@ -171,7 +172,7 @@ fn mod_metadata(tmp: &tempfile::TempDir) {
         }
 
         metadata_ele.children = vec![];
-        if metadata.cover_id.len() != 0 {
+        if !metadata.cover_id.is_empty() {
             let mut ele = xmltree::Element::new("meta");
             ele.attributes = HashMap::with_capacity(2);
             ele.attributes.insert("name".to_owned(), "cover".to_owned());
@@ -185,7 +186,7 @@ fn mod_metadata(tmp: &tempfile::TempDir) {
             io::stdout().flush().unwrap();
             io::stdin().read_line(&mut input).unwrap();
             let mut input = input.trim().to_owned();
-            if input.len() == 0 {
+            if input.is_empty() {
                 input = default;
             }
 
@@ -200,7 +201,7 @@ fn mod_metadata(tmp: &tempfile::TempDir) {
         prompt(
             metadata_ele,
             "subject",
-            if metadata.subjects.len() == 0 {
+            if metadata.subjects.is_empty() {
                 String::new()
             } else {
                 metadata.subjects[0].clone()
@@ -263,7 +264,8 @@ fn minify(tmp: &tempfile::TempDir) {
                         path.file_stem().unwrap().to_str().unwrap().to_owned() + "-crunch.png",
                     ),
                     path,
-                ).unwrap();
+                )
+                .unwrap();
             }
             _ => {}
         }
