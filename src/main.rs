@@ -16,7 +16,8 @@ Arguments:
 
 Options:
     -h, --help
-    -v, --version
+    -V, --version
+    -v, --verbose    Verbose output. This prints every optimized file in the EPUB archive.
 ";
 
 fn main() {
@@ -27,10 +28,12 @@ fn main() {
         process::exit(1)
     }
 
-    if args.contains(["-v", "--version"]) {
+    if args.contains(["-V", "--version"]) {
         eprintln!("{}", &VERSION);
         process::exit(1)
     }
+
+    let verbose = args.contains(["-v", "--verbose"]);
 
     let matches = args.free().unwrap_or_else(|_| {
         eprintln!("{}", &USAGE);
@@ -44,15 +47,15 @@ fn main() {
 
     let path = &matches[0];
     // TODO: let's give better error feedback here
-    let original_len = fs::metadata(&path).unwrap().len();
+    let old_size_kib = fs::metadata(&path).unwrap().len() / 1024;
     let tmp = unzip(&path);
-    minify(&tmp);
+    minify(&tmp, &verbose);
     gen_epub(&path, &tmp);
     // TODO: register this at exit. how did tempdir crate do this?
     fs::remove_dir_all(&tmp).unwrap();
 
-    let optimized_len = fs::metadata(&path).unwrap().len();
-    println!("{} KiB saved.", (original_len - optimized_len) / 1024);
+    let new_size_kib = fs::metadata(&path).unwrap().len() / 1024;
+    println!("{}: {} KiB saved.", path, old_size_kib - new_size_kib);
 }
 
 fn mktmpdir() -> PathBuf {
@@ -66,11 +69,9 @@ fn mktmpdir() -> PathBuf {
 }
 
 fn unzip(path: &str) -> PathBuf {
-    println!("Reading ZIP...");
     let file = File::open(&path).unwrap();
     let mut zip = zip::ZipArchive::new(file).unwrap();
 
-    println!("Extracting ZIP...");
     let tmpdir = mktmpdir();
     for i in 0..zip.len() {
         let mut input = zip.by_index(i).unwrap();
@@ -87,9 +88,7 @@ fn unzip(path: &str) -> PathBuf {
     tmpdir
 }
 
-fn minify(tmpdir: &PathBuf) {
-    println!("Minifying files...");
-    let mut bytes_saved = 0;
+fn minify(tmpdir: &PathBuf, verbose: &bool) {
     for entry in walkdir::WalkDir::new(tmpdir) {
         // This loop is kept sequential to be simple.
         // In the future, we could do all this concurrently, and even take multiple EPUB files.
@@ -100,14 +99,13 @@ fn minify(tmpdir: &PathBuf) {
             continue;
         }
         let path = entry.path();
-
         let ext = path.extension();
         if ext == None {
             continue;
         }
         let ext = ext.unwrap();
 
-        let original_len = entry.metadata().unwrap().len();
+        let old_size_kib = entry.metadata().unwrap().len() / 1024;
         match ext.to_str().unwrap() {
             "opf" | "xml" | "html" | "htm" => {
                 Command::new("minify")
@@ -143,17 +141,25 @@ fn minify(tmpdir: &PathBuf) {
                     .output()
                     .unwrap();
             }
-            _ => {}
+            _ => {
+                continue;
+            }
         }
-        bytes_saved += original_len - entry.metadata().unwrap().len();
-        print!("\r{} KiB saved.", bytes_saved / 1024);
-        io::stdout().flush().unwrap();
+        let new_size_kib = entry.metadata().unwrap().len() / 1024;
+        if *verbose {
+            println!(
+                "{} {} KiB -> {} KiB (saved {} KiB)",
+                path.display(),
+                old_size_kib,
+                new_size_kib,
+                old_size_kib - new_size_kib
+            );
+            io::stdout().flush().unwrap();
+        }
     }
-    println!();
 }
 
 fn gen_epub(path: &str, tmpdir: &PathBuf) {
-    println!("Zipping...");
     let wd = env::current_dir().unwrap();
     let path_abs = fs::canonicalize(&path).unwrap();
 
