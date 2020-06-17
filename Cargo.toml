@@ -8,4 +8,4 @@ license = "ISC"
 clap = "2.32"
 tempfile = "3.0.2"
 walkdir = "2.1.4"
-zip = "0.4.2"
+zip = { version = "0.5", default-features = false, features = ["deflate"] }
