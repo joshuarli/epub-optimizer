@@ -9,10 +9,10 @@ use std::{
 };
 
 const VERSION: &str = "0.0.0";
-const USAGE: &str = "usage: epub-optimizer file... [OPTIONS]
+const USAGE: &str = "usage: epub-optimizer FILE [OPTIONS]
 
 Arguments:
-    file             Path(s) to EPUB files to optimize.
+    FILE             Path to the EPUB file to optimize.
 
 Options:
     -h, --help
@@ -38,26 +38,21 @@ fn main() {
     });
 
     if matches.is_empty() {
-        eprintln!("You must specify at least one file.\n\n{}", &USAGE);
+        eprintln!("You must specify a FILE.\n\n{}", &USAGE);
         process::exit(1)
     }
 
-    let mut bytes_saved: u64 = 0;
-    for path in matches {
-        println!("{}:", path);
-        // TODO: let's give better error feedback here
-        let original_len = fs::metadata(&path).unwrap().len();
-        let tmp = unzip(&path);
-        minify(&tmp);
-        gen_epub(&path, &tmp);
-        // TODO: register this at exit. how did tempdir crate do this?
-        fs::remove_dir_all(&tmp).unwrap();
-        let optimized_len = fs::metadata(&path).unwrap().len();
-        bytes_saved += original_len - optimized_len;
-        println!();
-    }
+    let path = &matches[0];
+    // TODO: let's give better error feedback here
+    let original_len = fs::metadata(&path).unwrap().len();
+    let tmp = unzip(&path);
+    minify(&tmp);
+    gen_epub(&path, &tmp);
+    // TODO: register this at exit. how did tempdir crate do this?
+    fs::remove_dir_all(&tmp).unwrap();
 
-    println!("{}KiB saved in total.", bytes_saved / 1024);
+    let optimized_len = fs::metadata(&path).unwrap().len();
+    println!("{} KiB saved.", (original_len - optimized_len) / 1024);
 }
 
 fn mktmpdir() -> PathBuf {
@@ -96,6 +91,10 @@ fn minify(tmpdir: &PathBuf) {
     println!("Minifying files...");
     let mut bytes_saved = 0;
     for entry in walkdir::WalkDir::new(tmpdir) {
+        // This loop is kept sequential to be simple.
+        // In the future, we could do all this concurrently, and even take multiple EPUB files.
+        // But passing this to fd like `fd -e epub -x epub-optimizer {}` lets us saturate all cores easily.
+        // (By default, fd uses nproc execution threads, and jpegoptim and pngquant are single-threaded.)
         let entry = entry.unwrap();
         if entry.file_type().is_dir() {
             continue;
@@ -147,7 +146,7 @@ fn minify(tmpdir: &PathBuf) {
             _ => {}
         }
         bytes_saved += original_len - entry.metadata().unwrap().len();
-        print!("\r{}KiB saved.", bytes_saved / 1024);
+        print!("\r{} KiB saved.", bytes_saved / 1024);
         io::stdout().flush().unwrap();
     }
     println!();
