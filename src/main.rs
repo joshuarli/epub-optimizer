@@ -46,6 +46,8 @@ fn main() {
     }
 
     let path = &matches[0];
+    // TODO: validate extension is at least epub jsut to guard against accidental unzipping
+    //       we could also additionally check for the manifest after unzipping to be even more correct
     // TODO: let's give better error feedback here
     let old_size_kib = fs::metadata(&path).unwrap().len() / 1024;
     let tmp = unzip(&path);
@@ -95,7 +97,8 @@ fn minify(tmpdir: &PathBuf, verbose: &bool) {
         // But passing this to fd like `fd -e epub -x epub-optimizer {}` lets us saturate all cores easily.
         // (By default, fd uses nproc execution threads, and jpegoptim and pngquant are single-threaded.)
         let entry = entry.unwrap();
-        if entry.file_type().is_dir() {
+        let metadata = entry.metadata().unwrap();
+        if metadata.is_dir() {
             continue;
         }
         let path = entry.path();
@@ -105,7 +108,7 @@ fn minify(tmpdir: &PathBuf, verbose: &bool) {
         }
         let ext = ext.unwrap();
 
-        let old_size_kib = entry.metadata().unwrap().len() / 1024;
+        let old_size_kib = metadata.len() / 1024;
         match ext.to_str().unwrap() {
             "opf" | "xml" | "html" | "htm" => {
                 Command::new("minify")
@@ -145,8 +148,10 @@ fn minify(tmpdir: &PathBuf, verbose: &bool) {
                 continue;
             }
         }
-        let new_size_kib = entry.metadata().unwrap().len() / 1024;
+
         if *verbose {
+            let new_metadata = entry.metadata().unwrap();
+            let new_size_kib = new_metadata.len() / 1024;
             println!(
                 "{} {} KiB -> {} KiB (saved {} KiB)",
                 path.display(),
