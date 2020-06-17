@@ -9,3 +9,13 @@ pico-args = { version = "0.3", default-features = false }
 fastrand = { version = "1.1", default-features = false }
 walkdir = { version = "2.3", default-features = false }
 zip = { version = "0.5", default-features = false, features = ["deflate"] }
+
+[[bin]]
+name = "epub-optimizer"
+path = "src/main.rs"
+
+[profile.release]
+panic = "abort"  # remove support for stack unwinding for smaller releases
+lto = "fat"
+codegen-units = 1
+opt-level = "z"  # smaller releases; most of the overhead is in external programs
