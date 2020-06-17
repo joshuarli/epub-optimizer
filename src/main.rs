@@ -250,7 +250,8 @@ fn minify(tmp: &tempfile::TempDir) {
             }
             "jpeg" | "jpg" => {
                 Command::new("jpegoptim")
-                    .arg("-s")
+                    .arg("--strip-all")
+                    .arg("--max=90")
                     .arg(path)
                     .output()
                     .unwrap();
