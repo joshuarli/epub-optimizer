@@ -48,8 +48,12 @@ fn main() {
     let path = &matches[0];
     // TODO: validate extension is at least epub jsut to guard against accidental unzipping
     //       we could also additionally check for the manifest after unzipping to be even more correct
-    // TODO: let's give better error feedback here
-    let old_size_bytes = fs::metadata(&path).unwrap().len();
+    let metadata = fs::metadata(&path).unwrap_or_else(|_| {
+        eprintln!("{} doesn't exist.", path);
+        process::exit(1)
+    });
+
+    let old_size_bytes = metadata.len();
     let tmp = unzip(&path);
     minify(&tmp, &verbose);
     gen_epub(&path, &tmp);
