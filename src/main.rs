@@ -28,20 +28,15 @@ fn main() {
     for path in matches.values_of("files").unwrap() {
         println!("{}:", path);
         let original_len = fs::metadata(path).unwrap().len() as i64;
-        process(path);
+        let tmp = unzip(path);
+        minify(&tmp);
+        gen_epub(path, &tmp);
         let optimized_len = fs::metadata(path).unwrap().len() as i64;
         bytes_saved += original_len - optimized_len;
-
         println!();
     }
 
     println!("{}KiB saved in total.", bytes_saved / 1024);
-}
-
-fn process(path: &str) {
-    let tmp = unzip(path);
-    minify(&tmp);
-    gen_epub(path, &tmp);
 }
 
 fn unzip(path: &str) -> tempfile::TempDir {
@@ -136,6 +131,7 @@ fn gen_epub(path: &str, tmp: &tempfile::TempDir) {
 
     let _ = fs::remove_file(&path);
     env::set_current_dir(&tmp).unwrap();
+    // TODO: use the zip crate to do this
     let mut cmd = Command::new("zip");
     cmd.arg("-9r");
     cmd.arg(&path_abs);
