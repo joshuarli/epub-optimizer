@@ -114,10 +114,21 @@ fn minify(tmpdir: &PathBuf, verbose: &bool) {
         let ext = ext.unwrap();
 
         let old_size_bytes = metadata.len();
-        match ext.to_str().unwrap() {
+        match ext.to_str().unwrap().to_ascii_lowercase().as_str() {
             "opf" | "xml" | "html" | "htm" => {
                 Command::new("minify")
                     .arg("--mime=text/xml")
+                    .arg(path)
+                    .arg("-o")
+                    .arg(path)
+                    .output()
+                    .unwrap();
+            }
+            "xhtml" => {
+                Command::new("minify")
+                    .arg("--mime=text/xhtml+xml")
+                    .arg(path)
+                    .arg("-o")
                     .arg(path)
                     .output()
                     .unwrap();
