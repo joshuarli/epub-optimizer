@@ -62,6 +62,7 @@ fn main() {
     println!("{}KiB saved in total.", bytes_saved / 1024);
 }
 
+// TODO: replace tempfile, it pulls in libc and rand
 fn unzip(path: &str) -> tempfile::TempDir {
     println!("Reading ZIP...");
     let file = File::open(&path).unwrap();
