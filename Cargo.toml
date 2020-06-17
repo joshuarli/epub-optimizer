@@ -1,7 +1,8 @@
 [package]
 name = "epub-optimizer"
-version = "0.1.0"
-authors = ["reujab <reujab@gmail.com>"]
+version = "0.0.0"
+authors = ["Joshua Li <josh@jrl.ninja>"]
+license = "ISC"
 
 [dependencies]
 clap = "2.32"
