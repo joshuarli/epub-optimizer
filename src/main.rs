@@ -1,13 +1,16 @@
+extern crate fastrand;
 extern crate pico_args;
-extern crate tempfile;
 extern crate walkdir;
 extern crate zip;
 
 use std::env;
+use std::env::temp_dir;
 use std::fs;
 use std::fs::File;
 use std::io;
 use std::io::Write;
+use std::iter::repeat_with;
+use std::path::PathBuf;
 use std::process;
 use std::process::Command;
 use walkdir::WalkDir;
@@ -54,6 +57,8 @@ fn main() {
         let tmp = unzip(&path);
         minify(&tmp);
         gen_epub(&path, &tmp);
+        // TODO: register this at exit. how did tempdir crate do this?
+        fs::remove_dir_all(&tmp).unwrap();
         let optimized_len = fs::metadata(&path).unwrap().len() as i64;
         bytes_saved += original_len - optimized_len;
         println!();
@@ -62,35 +67,38 @@ fn main() {
     println!("{}KiB saved in total.", bytes_saved / 1024);
 }
 
-// TODO: replace tempfile, it pulls in libc and rand
-fn unzip(path: &str) -> tempfile::TempDir {
+fn unzip(path: &str) -> PathBuf {
     println!("Reading ZIP...");
     let file = File::open(&path).unwrap();
     let mut zip = zip::ZipArchive::new(file).unwrap();
 
-    println!("Extracting ZIP...");
-    let tmp = tempfile::tempdir().unwrap();
+    let tmpdir = temp_dir().join(
+        repeat_with(fastrand::alphanumeric)
+            .take(8)
+            .collect::<String>(),
+    );
+    println!("Extracting ZIP... {:?}", tmpdir);
+
     for i in 0..zip.len() {
         let mut input = zip.by_index(i).unwrap();
         if input.name().ends_with('/') {
             continue;
         }
         let input_path = input.sanitized_name();
-
-        let output_path = tmp.path().join(input_path);
+        let output_path = tmpdir.join(input_path);
         let _ = fs::create_dir_all(output_path.parent().unwrap());
         let mut output = File::create(output_path).unwrap();
 
         io::copy(&mut input, &mut output).unwrap();
     }
 
-    tmp
+    tmpdir
 }
 
-fn minify(tmp: &tempfile::TempDir) {
+fn minify(tmpdir: &PathBuf) {
     println!("Minifying files...");
     let mut bytes_saved = 0;
-    for entry in WalkDir::new(&tmp) {
+    for entry in WalkDir::new(tmpdir) {
         let entry = entry.unwrap();
         if entry.file_type().is_dir() {
             continue;
@@ -148,13 +156,13 @@ fn minify(tmp: &tempfile::TempDir) {
     println!();
 }
 
-fn gen_epub(path: &str, tmp: &tempfile::TempDir) {
+fn gen_epub(path: &str, tmpdir: &PathBuf) {
     println!("Zipping...");
     let wd = env::current_dir().unwrap();
     let path_abs = fs::canonicalize(&path).unwrap();
 
     let _ = fs::remove_file(&path);
-    env::set_current_dir(&tmp).unwrap();
+    env::set_current_dir(tmpdir).unwrap();
     // TODO: use the zip crate to do this
     let mut cmd = Command::new("zip");
     cmd.arg("-9r");
