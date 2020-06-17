@@ -256,16 +256,15 @@ fn minify(tmp: &tempfile::TempDir) {
                     .unwrap();
             }
             "png" => {
-                Command::new("crunch").arg(path).output().unwrap();
-                // FIXME when crunch adds an option to overwrite file
-                // https://github.com/chrissimpkins/Crunch/issues/20
-                fs::rename(
-                    path.parent().unwrap().join(
-                        path.file_stem().unwrap().to_str().unwrap().to_owned() + "-crunch.png",
-                    ),
-                    path,
-                )
-                .unwrap();
+                Command::new("pngquant")
+                    .arg("--skip-if-larger")
+                    .arg("--force")
+                    .arg("--ext")
+                    .arg(".png")
+                    .arg("--quality=90")
+                    .arg(path)
+                    .output()
+                    .unwrap();
             }
             _ => {}
         }
