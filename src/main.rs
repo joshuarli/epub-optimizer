@@ -1,12 +1,11 @@
-extern crate fastrand;
 extern crate pico_args;
 extern crate walkdir;
 extern crate zip;
 
-use std::{
-    env, env::temp_dir, fs, fs::File, io, io::Write, iter::repeat_with, path::PathBuf, process,
-    process::Command,
-};
+use std::{env, fs, fs::File, io, io::Write, process, process::Command};
+
+mod tempdir;
+use tempdir::TempDir;
 
 const VERSION: &str = "0.0.0";
 const USAGE: &str = "usage: epub-optimizer FILE [OPTIONS]
@@ -57,8 +56,6 @@ fn main() {
     let tmp = unzip(&path);
     minify(&tmp, &verbose);
     gen_epub(&path, &tmp);
-    // TODO: register this at exit. how did tempdir crate do this?
-    fs::remove_dir_all(&tmp).unwrap();
 
     let new_size_bytes = fs::metadata(&path).unwrap().len();
     println!(
@@ -69,27 +66,18 @@ fn main() {
     );
 }
 
-fn mktmpdir() -> PathBuf {
-    let tmpdir = temp_dir().join(
-        repeat_with(fastrand::alphanumeric)
-            .take(8)
-            .collect::<String>(),
-    );
-    fs::create_dir(&tmpdir).unwrap();
-    tmpdir
-}
-
-fn unzip(path: &str) -> PathBuf {
+fn unzip(path: &str) -> TempDir {
     let file = File::open(&path).unwrap();
     let mut zip = zip::ZipArchive::new(file).unwrap();
 
-    let tmpdir = mktmpdir();
+    let tmpdir = TempDir::new().unwrap();
+    let prefix = tmpdir.path();
     for i in 0..zip.len() {
         let mut input = zip.by_index(i).unwrap();
         if input.name().ends_with('/') {
             continue;
         }
-        let output_path = tmpdir.join(input.sanitized_name());
+        let output_path = prefix.join(input.sanitized_name());
         // TODO: We can do better than this.
         fs::create_dir_all(output_path.parent().unwrap()).unwrap();
         let mut output = File::create(output_path).unwrap();
@@ -99,8 +87,8 @@ fn unzip(path: &str) -> PathBuf {
     tmpdir
 }
 
-fn minify(tmpdir: &PathBuf, verbose: &bool) {
-    for entry in walkdir::WalkDir::new(tmpdir) {
+fn minify(tmpdir: &TempDir, verbose: &bool) {
+    for entry in walkdir::WalkDir::new(tmpdir.path()) {
         // This loop is kept sequential to be simple.
         // In the future, we could do all this concurrently, and even take multiple EPUB files.
         // But passing this to fd like `fd -e epub -x epub-optimizer {}` lets us saturate all cores easily.
@@ -193,12 +181,12 @@ fn minify(tmpdir: &PathBuf, verbose: &bool) {
     }
 }
 
-fn gen_epub(path: &str, tmpdir: &PathBuf) {
+fn gen_epub(path: &str, tmpdir: &TempDir) {
     let wd = env::current_dir().unwrap();
     let path_abs = fs::canonicalize(&path).unwrap();
 
     let _ = fs::remove_file(&path);
-    env::set_current_dir(tmpdir).unwrap();
+    env::set_current_dir(tmpdir.path()).unwrap();
     // TODO: use the zip crate to do this
     let mut cmd = Command::new("zip");
     cmd.arg("-9r");
