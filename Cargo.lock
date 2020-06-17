@@ -22,7 +22,7 @@ dependencies = [
 name = "epub-optimizer"
 version = "0.0.0"
 dependencies = [
- "fastrand 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "fastrand 1.2.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "pico-args 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "walkdir 2.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "zip 0.5.6 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -30,7 +30,7 @@ dependencies = [
 
 [[package]]
 name = "fastrand"
-version = "1.1.0"
+version = "1.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
@@ -126,7 +126,7 @@ dependencies = [
 "checksum adler32 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "567b077b825e468cc974f0020d4082ee6e03132512f207ef1a02fd5d00d1f32d"
 "checksum cfg-if 0.1.10 (registry+https://github.com/rust-lang/crates.io-index)" = "4785bdd1c96b2a846b2bd7cc02e86b6b3dbf14e7e53446c4f54c92a361040822"
 "checksum crc32fast 1.2.0 (registry+https://github.com/rust-lang/crates.io-index)" = "ba125de2af0df55319f41944744ad91c71113bf74a4646efff39afe1f6842db1"
-"checksum fastrand 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "12890fdee58a4be4e5a5480c30ff56d8002fdd2d32e12871b72f49486007fe74"
+"checksum fastrand 1.2.3 (registry+https://github.com/rust-lang/crates.io-index)" = "3b0959a7a42e12c0a72bf7025acb2b0a372d42a255a4ed4fbfb39d5f5fc0c5e6"
 "checksum flate2 1.0.14 (registry+https://github.com/rust-lang/crates.io-index)" = "2cfff41391129e0a856d6d822600b8d71179d46879e310417eb9c762eb178b42"
 "checksum libc 0.2.71 (registry+https://github.com/rust-lang/crates.io-index)" = "9457b06509d27052635f90d6466700c65095fdf75409b3fbdd903e988b886f49"
 "checksum miniz_oxide 0.3.7 (registry+https://github.com/rust-lang/crates.io-index)" = "791daaae1ed6889560f8c4359194f56648355540573244a5448a83ba1ecc7435"
