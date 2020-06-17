@@ -3,17 +3,10 @@ extern crate pico_args;
 extern crate walkdir;
 extern crate zip;
 
-use std::env;
-use std::env::temp_dir;
-use std::fs;
-use std::fs::File;
-use std::io;
-use std::io::Write;
-use std::iter::repeat_with;
-use std::path::PathBuf;
-use std::process;
-use std::process::Command;
-use walkdir::WalkDir;
+use std::{
+    env, env::temp_dir, fs, fs::File, io, io::Write, iter::repeat_with, path::PathBuf, process,
+    process::Command,
+};
 
 const VERSION: &str = "0.0.0";
 const USAGE: &str = "usage: epub-optimizer file... [OPTIONS]
@@ -49,17 +42,17 @@ fn main() {
         process::exit(1)
     }
 
-    let mut bytes_saved: i64 = 0;
+    let mut bytes_saved: u64 = 0;
     for path in matches {
         println!("{}:", path);
         // TODO: let's give better error feedback here
-        let original_len = fs::metadata(&path).unwrap().len() as i64;
+        let original_len = fs::metadata(&path).unwrap().len();
         let tmp = unzip(&path);
         minify(&tmp);
         gen_epub(&path, &tmp);
         // TODO: register this at exit. how did tempdir crate do this?
         fs::remove_dir_all(&tmp).unwrap();
-        let optimized_len = fs::metadata(&path).unwrap().len() as i64;
+        let optimized_len = fs::metadata(&path).unwrap().len();
         bytes_saved += original_len - optimized_len;
         println!();
     }
@@ -67,28 +60,32 @@ fn main() {
     println!("{}KiB saved in total.", bytes_saved / 1024);
 }
 
-fn unzip(path: &str) -> PathBuf {
-    println!("Reading ZIP...");
-    let file = File::open(&path).unwrap();
-    let mut zip = zip::ZipArchive::new(file).unwrap();
-
+fn mktmpdir() -> PathBuf {
     let tmpdir = temp_dir().join(
         repeat_with(fastrand::alphanumeric)
             .take(8)
             .collect::<String>(),
     );
-    println!("Extracting ZIP... {:?}", tmpdir);
+    fs::create_dir(&tmpdir).unwrap();
+    tmpdir
+}
 
+fn unzip(path: &str) -> PathBuf {
+    println!("Reading ZIP...");
+    let file = File::open(&path).unwrap();
+    let mut zip = zip::ZipArchive::new(file).unwrap();
+
+    println!("Extracting ZIP...");
+    let tmpdir = mktmpdir();
     for i in 0..zip.len() {
         let mut input = zip.by_index(i).unwrap();
         if input.name().ends_with('/') {
             continue;
         }
-        let input_path = input.sanitized_name();
-        let output_path = tmpdir.join(input_path);
-        let _ = fs::create_dir_all(output_path.parent().unwrap());
+        let output_path = tmpdir.join(input.sanitized_name());
+        // TODO: We can do better than this.
+        fs::create_dir_all(output_path.parent().unwrap()).unwrap();
         let mut output = File::create(output_path).unwrap();
-
         io::copy(&mut input, &mut output).unwrap();
     }
 
@@ -98,7 +95,7 @@ fn unzip(path: &str) -> PathBuf {
 fn minify(tmpdir: &PathBuf) {
     println!("Minifying files...");
     let mut bytes_saved = 0;
-    for entry in WalkDir::new(tmpdir) {
+    for entry in walkdir::WalkDir::new(tmpdir) {
         let entry = entry.unwrap();
         if entry.file_type().is_dir() {
             continue;
