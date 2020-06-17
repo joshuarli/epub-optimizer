@@ -1,37 +1,60 @@
-extern crate clap;
+extern crate pico_args;
 extern crate tempfile;
 extern crate walkdir;
 extern crate zip;
 
-use clap::App;
-use clap::Arg;
 use std::env;
 use std::fs;
 use std::fs::File;
 use std::io;
 use std::io::Write;
+use std::process;
 use std::process::Command;
 use walkdir::WalkDir;
 
+const VERSION: &str = "0.0.0";
+const USAGE: &str = "usage: epub-optimizer file... [OPTIONS]
+
+Arguments:
+    file             Path(s) to EPUB files to optimize.
+
+Options:
+    -h, --help
+    -v, --version
+";
+
 fn main() {
-    let matches = App::new("epub-optimizer")
-        .about("A command-line app that optimizes and edits metadata of .epub files")
-        .arg(
-            Arg::with_name("files")
-                .help("List of files to optimize")
-                .required(true)
-                .min_values(1),
-        )
-        .get_matches();
+    let mut args = pico_args::Arguments::from_env();
+
+    if args.contains(["-h", "--help"]) {
+        eprintln!("{}", &USAGE);
+        process::exit(1)
+    }
+
+    if args.contains(["-v", "--version"]) {
+        eprintln!("{}", &VERSION);
+        process::exit(1)
+    }
+
+    let matches = args.free().unwrap_or_else(|_| {
+        eprintln!("{}", &USAGE);
+        process::exit(1)
+    });
+
+    if matches.is_empty() {
+        eprintln!("You must specify at least one file.\n\n{}", &USAGE);
+        process::exit(1)
+    }
 
     let mut bytes_saved: i64 = 0;
-    for path in matches.values_of("files").unwrap() {
+    for path in matches {
         println!("{}:", path);
-        let original_len = fs::metadata(path).unwrap().len() as i64;
-        let tmp = unzip(path);
+        // TODO: let's give better error feedback here
+        let original_len = fs::metadata(&path).unwrap().len() as i64;
+        let tmp = unzip(&path);
         minify(&tmp);
-        gen_epub(path, &tmp);
-        let optimized_len = fs::metadata(path).unwrap().len() as i64;
+        gen_epub(&path, &tmp);
+        let optimized_len = fs::metadata(&path).unwrap().len() as i64;
         bytes_saved += original_len - optimized_len;
         println!();
     }
