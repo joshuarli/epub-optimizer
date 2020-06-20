@@ -1,11 +1,11 @@
 extern crate pico_args;
 extern crate walkdir;
-extern crate zip;
 
-use std::{env, fs, fs::File, io, io::Write, process, process::Command};
+use std::{fs, io, io::Write, process, process::Command};
 
 mod tempdir;
 use tempdir::TempDir;
+mod zip;
 
 const VERSION: &str = "0.0.0";
 const USAGE: &str = "usage: epub-optimizer FILE [OPTIONS]
@@ -53,9 +53,9 @@ fn main() {
     });
 
     let old_size_bytes = metadata.len();
-    let tmp = unzip(&path);
-    minify(&tmp, &verbose);
-    gen_epub(&path, &tmp);
+    let workdir = zip::unzip(&path);
+    minify(&workdir, &verbose);
+    zip::zip(&path, &workdir);
 
     let new_size_bytes = fs::metadata(&path).unwrap().len();
     println!(
@@ -64,27 +64,6 @@ fn main() {
         (old_size_bytes - new_size_bytes) / 1024,
         100 * (old_size_bytes - new_size_bytes) / old_size_bytes
     );
-}
-
-fn unzip(path: &str) -> TempDir {
-    let file = File::open(&path).unwrap();
-    let mut zip = zip::ZipArchive::new(file).unwrap();
-
-    let tmpdir = TempDir::new().unwrap();
-    let prefix = tmpdir.path();
-    for i in 0..zip.len() {
-        let mut input = zip.by_index(i).unwrap();
-        if input.name().ends_with('/') {
-            continue;
-        }
-        let output_path = prefix.join(input.sanitized_name());
-        // TODO: We can do better than this.
-        fs::create_dir_all(output_path.parent().unwrap()).unwrap();
-        let mut output = File::create(output_path).unwrap();
-        io::copy(&mut input, &mut output).unwrap();
-    }
-
-    tmpdir
 }
 
 fn minify(tmpdir: &TempDir, verbose: &bool) {
@@ -164,21 +143,4 @@ fn minify(tmpdir: &TempDir, verbose: &bool) {
             io::stdout().flush().unwrap();
         }
     }
-}
-
-fn gen_epub(path: &str, tmpdir: &TempDir) {
-    let wd = env::current_dir().unwrap();
-    let path_abs = fs::canonicalize(&path).unwrap();
-
-    let _ = fs::remove_file(&path);
-    env::set_current_dir(tmpdir.path()).unwrap();
-    // TODO: use the zip crate to do this
-    let mut cmd = Command::new("zip");
-    cmd.arg("-9r");
-    cmd.arg(&path_abs);
-    for path in fs::read_dir(".").unwrap() {
-        cmd.arg(path.unwrap().path());
-    }
-    cmd.output().unwrap();
-    env::set_current_dir(wd).unwrap();
 }
