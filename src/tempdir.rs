@@ -8,8 +8,9 @@ pub struct TempDir {
 
 impl TempDir {
     pub fn new() -> io::Result<TempDir> {
+        let rng = fastrand::Rng::new();
         let path = temp_dir().join(
-            repeat_with(fastrand::alphanumeric)
+            repeat_with(|| rng.alphanumeric())
                 .take(8)
                 .collect::<String>(),
         );
