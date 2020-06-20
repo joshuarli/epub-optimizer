@@ -45,12 +45,16 @@ fn main() {
     }
 
     let path = &matches[0];
-    // TODO: validate extension is at least epub jsut to guard against accidental unzipping
-    //       we could also additionally check for the manifest after unzipping to be even more correct
     let metadata = fs::metadata(&path).unwrap_or_else(|_| {
         eprintln!("{} doesn't exist.", path);
         process::exit(1)
     });
+
+    if !path.ends_with(".epub") {
+        // we could also additionally check for the manifest after unzipping to be even more correct
+        eprintln!("{} does not have an .epub extension.", path);
+        process::exit(1)
+    }
 
     let old_size_bytes = metadata.len();
     let workdir = zip::unzip(&path);
