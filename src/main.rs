@@ -107,35 +107,20 @@ fn minify(tmpdir: &TempDir, verbose: &bool) {
 
         let old_size_bytes = metadata.len();
         match ext.to_str().unwrap().to_ascii_lowercase().as_str() {
-            "opf" | "xml" => {
+            "html" | "htm" | "css" | "svg" | "xml" => {
+                Command::new("minify")
+                    .arg(path)
+                    .arg("-o")
+                    .arg(path)
+                    .output()
+                    .unwrap();
+            }
+            // XXX: Upstream minify-cli doesn't currently infer mimetypes for opf and xhtml.
+            // The correct mimetype for xhtml is text/xhtml+xml, but text/xml works fine.
+            // My own extracted minify-cli at https://github.com/joshuarli/minify-cli supports this.
+            "opf" | "xhtml" => {
                 Command::new("minify")
                     .arg("--mime=text/xml")
-                    .arg(path)
-                    .arg("-o")
-                    .arg(path)
-                    .output()
-                    .unwrap();
-            }
-            "html" | "htm" => {
-                Command::new("minify")
-                    .arg("--mime=text/html")
-                    .arg(path)
-                    .arg("-o")
-                    .arg(path)
-                    .output()
-                    .unwrap();
-            }
-            "xhtml" => {
-                Command::new("minify")
-                    .arg("--mime=text/xhtml+xml")
-                    .arg(path)
-                    .arg("-o")
-                    .arg(path)
-                    .output()
-                    .unwrap();
-            }
-            "css" | "svg" => {
-                Command::new("minify")
                     .arg(path)
                     .arg("-o")
                     .arg(path)
