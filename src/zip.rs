@@ -1,4 +1,4 @@
-use std::{env, fs, fs::File, io, process::Command};
+use std::{fs, fs::File, io, io::Read, io::Write, path::Path};
 
 extern crate zip;
 
@@ -25,19 +25,29 @@ pub fn unzip(path: &str) -> TempDir {
     tmpdir
 }
 
-pub fn zip(dest: &str, src: &TempDir) {
-    let wd = env::current_dir().unwrap();
-    let path_abs = fs::canonicalize(&dest).unwrap();
+pub fn zip(dest: &str, src: &Path) -> zip::result::ZipResult<()> {
+    let f = File::create(&dest).unwrap();
+    let mut zip = zip::ZipWriter::new(f);
+    let options =
+        zip::write::FileOptions::default().compression_method(zip::CompressionMethod::Deflated);
 
-    let _ = fs::remove_file(&dest);
-    env::set_current_dir(src.path()).unwrap();
-    // TODO: use the zip crate to do this
-    let mut cmd = Command::new("zip");
-    cmd.arg("-9r");
-    cmd.arg(&path_abs);
-    for path in fs::read_dir(".").unwrap() {
-        cmd.arg(path.unwrap().path());
+    let mut buffer = Vec::new();
+    for entry in walkdir::WalkDir::new(src) {
+        let entry = entry.unwrap();
+        let path = entry.path();
+        let name = path.strip_prefix(src).unwrap();
+
+        if path.is_file() {
+            zip.start_file_from_path(name, options)?;
+            let mut f = File::open(path)?;
+            f.read_to_end(&mut buffer)?;
+            zip.write_all(&*buffer)?;
+            buffer.clear();
+            continue;
+        }
+        zip.add_directory_from_path(name, options)?;
     }
-    cmd.output().unwrap();
-    env::set_current_dir(wd).unwrap();
+
+    zip.finish()?;
+    Ok(())
 }

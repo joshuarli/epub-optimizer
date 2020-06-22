@@ -59,7 +59,7 @@ fn main() {
     let old_size_bytes = metadata.len();
     let workdir = zip::unzip(&path);
     minify(&workdir, &verbose);
-    zip::zip(&path, &workdir);
+    zip::zip(&path, &workdir.path()).unwrap();
 
     let new_size_bytes = fs::metadata(&path).unwrap().len();
     println!(
