@@ -90,7 +90,9 @@ fn minify(tmpdir: &TempDir, verbose: &bool) {
 
         let old_size_bytes = metadata.len();
         match ext.to_str().unwrap().to_ascii_lowercase().as_str() {
-            "html" | "htm" | "css" | "svg" | "xml" => {
+            // TODO: minify is actually producing minified htm/html that leads Apple Books to complain about corruption.
+            // Not sure whose fault it is.
+            "svg" | "xml" => {
                 Command::new("minify")
                     .arg(path)
                     .arg("-o")
