@@ -1,7 +1,7 @@
 extern crate pico_args;
 extern crate walkdir;
 
-use std::{fs, io, io::Write, process, process::Command};
+use std::{env, fs, io, io::Write, process, process::Command};
 
 mod tempdir;
 use tempdir::TempDir;
@@ -71,7 +71,12 @@ fn main() {
 }
 
 fn minify(tmpdir: &TempDir, verbose: &bool) {
-    for entry in walkdir::WalkDir::new(tmpdir.path()) {
+    let pwd = env::current_dir().unwrap();
+    env::set_current_dir(tmpdir.path()).unwrap();
+
+    let mut jpgs = Vec::new();
+
+    for entry in walkdir::WalkDir::new(".") {
         // This loop is kept sequential to be simple.
         // In the future, we could do all this concurrently, and even take multiple EPUB files.
         // But passing this to fd like `fd -e epub -x epub-optimizer {}` lets us saturate all cores easily.
@@ -113,12 +118,7 @@ fn minify(tmpdir: &TempDir, verbose: &bool) {
                     .unwrap();
             }
             "jpeg" | "jpg" => {
-                Command::new("jpegoptim")
-                    .arg("--strip-all")
-                    .arg("--max=90")
-                    .arg(path)
-                    .output()
-                    .unwrap();
+                jpgs.push(path.to_owned());
             }
             "png" => {
                 Command::new("pngquant")
@@ -149,4 +149,13 @@ fn minify(tmpdir: &TempDir, verbose: &bool) {
             io::stdout().flush().unwrap();
         }
     }
+
+    // TODO: Once I move this onto a separate thread, do size reporting.
+    let mut jpegoptim = Command::new("jpegoptim");
+    jpegoptim.arg("--strip-all").arg("--max=90");
+    // TODO: do we need to guard against exceeding exec length limit?
+    jpegoptim.args(jpgs);
+    jpegoptim.output().unwrap();
+
+    env::set_current_dir(pwd).unwrap();
 }
