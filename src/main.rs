@@ -75,6 +75,7 @@ fn minify(tmpdir: &TempDir, verbose: &bool) {
     env::set_current_dir(tmpdir.path()).unwrap();
 
     let mut jpgs = Vec::new();
+    let mut pngs = Vec::new();
 
     for entry in walkdir::WalkDir::new(".") {
         // This loop is kept sequential to be simple.
@@ -121,15 +122,7 @@ fn minify(tmpdir: &TempDir, verbose: &bool) {
                 jpgs.push(path.to_owned());
             }
             "png" => {
-                Command::new("pngquant")
-                    .arg("--skip-if-larger")
-                    .arg("--force")
-                    .arg("--ext")
-                    .arg(".png")
-                    .arg("--quality=90")
-                    .arg(path)
-                    .output()
-                    .unwrap();
+                pngs.push(path.to_owned());
             }
             _ => {
                 continue;
@@ -151,11 +144,25 @@ fn minify(tmpdir: &TempDir, verbose: &bool) {
     }
 
     // TODO: Once I move this onto a separate thread, do size reporting.
-    let mut jpegoptim = Command::new("jpegoptim");
-    jpegoptim.arg("--strip-all").arg("--max=90");
     // TODO: do we need to guard against exceeding exec length limit?
-    jpegoptim.args(jpgs);
-    jpegoptim.output().unwrap();
+    let mut jpegoptim = Command::new("jpegoptim");
+    jpegoptim
+        .arg("--strip-all")
+        .arg("--max=90")
+        .args(jpgs)
+        .output()
+        .unwrap();
+
+    let mut pngquant = Command::new("pngquant");
+    pngquant
+        .arg("--skip-if-larger")
+        .arg("--force")
+        .arg("--ext")
+        .arg(".png")
+        .arg("--quality=90")
+        .args(pngs)
+        .output()
+        .unwrap();
 
     env::set_current_dir(pwd).unwrap();
 }
