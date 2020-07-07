@@ -1,7 +1,7 @@
 extern crate pico_args;
 extern crate walkdir;
 
-use std::{env, fs, io, io::Write, process, process::Command};
+use std::{env, fs, io, io::Write, process, process::Command, thread};
 
 mod tempdir;
 use tempdir::TempDir;
@@ -143,26 +143,44 @@ fn minify(tmpdir: &TempDir, verbose: &bool) {
         }
     }
 
-    // TODO: Once I move this onto a separate thread, do size reporting.
-    // TODO: do we need to guard against exceeding exec length limit?
-    let mut jpegoptim = Command::new("jpegoptim");
-    jpegoptim
-        .arg("--strip-all")
-        .arg("--max=90")
-        .args(jpgs)
-        .output()
-        .unwrap();
+    let mut workers = Vec::new();
 
-    let mut pngquant = Command::new("pngquant");
-    pngquant
-        .arg("--skip-if-larger")
-        .arg("--force")
-        .arg("--ext")
-        .arg(".png")
-        .arg("--quality=90")
-        .args(pngs)
-        .output()
-        .unwrap();
+    if !jpgs.is_empty() {
+        workers.push(thread::spawn(|| {
+            // TODO: Size reporting.
+            // TODO: Do we need to guard against exceeding exec length limit?
+            println!("jpegoptim thread spawned");
+            let mut jpegoptim = Command::new("jpegoptim");
+            jpegoptim
+                .arg("--strip-all")
+                .arg("--max=90")
+                .args(jpgs)
+                .output()
+                .unwrap();
+        }));
+    }
+
+    if !pngs.is_empty() {
+        workers.push(thread::spawn(|| {
+            // TODO: Size reporting.
+            // TODO: Do we need to guard against exceeding exec length limit?
+            println!("pngquant thread spawned");
+            let mut pngquant = Command::new("pngquant");
+            pngquant
+                .arg("--skip-if-larger")
+                .arg("--force")
+                .arg("--ext")
+                .arg(".png")
+                .arg("--quality=90")
+                .args(pngs)
+                .output()
+                .unwrap();
+        }));
+    }
+
+    for worker in workers {
+        worker.join().unwrap();
+    }
 
     env::set_current_dir(pwd).unwrap();
 }
