@@ -2,7 +2,7 @@ extern crate minify_html;
 extern crate pico_args;
 extern crate walkdir;
 
-use std::{env, fs, io, io::Write, process, process::Command, thread};
+use std::{env, fs, process, process::Command, thread};
 
 mod tempdir;
 use tempdir::TempDir;
@@ -71,7 +71,7 @@ fn main() {
     );
 }
 
-fn minify(tmpdir: &TempDir, verbose: &bool) {
+fn minify(tmpdir: &TempDir, _verbose: &bool) {
     let pwd = env::current_dir().unwrap();
     env::set_current_dir(tmpdir.path()).unwrap();
 
@@ -96,7 +96,6 @@ fn minify(tmpdir: &TempDir, verbose: &bool) {
         }
         let ext = ext.unwrap();
 
-        let old_size_bytes = metadata.len();
         match ext.to_str().unwrap().to_ascii_lowercase().as_str() {
             // TODO: "svg" | "xml" | "opf"
             // This used to be https://github.com/tdewolff/minify (via joshuarli/minify-cli)
@@ -113,19 +112,6 @@ fn minify(tmpdir: &TempDir, verbose: &bool) {
             _ => {
                 continue;
             }
-        }
-
-        if *verbose {
-            let new_metadata = entry.metadata().unwrap();
-            let new_size_bytes = new_metadata.len();
-            println!(
-                "{} {} KiB -> {} KiB ({:.2}% smaller)",
-                path.display(),
-                old_size_bytes / 1024,
-                new_size_bytes / 1024,
-                100 * (old_size_bytes - new_size_bytes) / old_size_bytes,
-            );
-            io::stdout().flush().unwrap();
         }
     }
 
@@ -147,6 +133,9 @@ fn minify(tmpdir: &TempDir, verbose: &bool) {
     if !jpgs.is_empty() {
         workers.push(thread::spawn(|| {
             // TODO: Size reporting.
+            // I haven't yet found a good rust-native jpeg optimizer.
+            // Until then, per-file size reporting is going to be silly to implement.
+            // I'd much rather pass all the filepaths for a single exec.
             // TODO: Do we need to guard against exceeding exec length limit?
             let mut jpegoptim = Command::new("jpegoptim");
             jpegoptim
@@ -161,6 +150,9 @@ fn minify(tmpdir: &TempDir, verbose: &bool) {
     if !pngs.is_empty() {
         workers.push(thread::spawn(|| {
             // TODO: Size reporting.
+            // I haven't yet found a good rust-native png optimizer.
+            // Until then, per-file size reporting is going to be silly to implement.
+            // I'd much rather pass all the filepaths for a single exec.
             // TODO: Do we need to guard against exceeding exec length limit?
             let mut pngquant = Command::new("pngquant");
             pngquant
