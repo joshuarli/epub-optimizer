@@ -8,6 +8,7 @@ license = "ISC"
 pico-args = { version = "0.3", default-features = false }
 fastrand = { version = "1.2.3", default-features = false }
 walkdir = { version = "2.3", default-features = false }
+minify-html = { version = "0.2.6", default-features = false }
 
 # Temporarily pinned to 7f3b39f until new version is released.
 zip = { git = "https://github.com/mvdnes/zip-rs", rev = "7f3b39f", default-features = false, features = ["deflate"] }

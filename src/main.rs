@@ -1,3 +1,4 @@
+extern crate minify_html;
 extern crate pico_args;
 extern crate walkdir;
 
@@ -74,6 +75,7 @@ fn minify(tmpdir: &TempDir, verbose: &bool) {
     let pwd = env::current_dir().unwrap();
     env::set_current_dir(tmpdir.path()).unwrap();
 
+    let mut htmls = Vec::new();
     let mut jpgs = Vec::new();
     let mut pngs = Vec::new();
 
@@ -96,8 +98,6 @@ fn minify(tmpdir: &TempDir, verbose: &bool) {
 
         let old_size_bytes = metadata.len();
         match ext.to_str().unwrap().to_ascii_lowercase().as_str() {
-            // TODO: minify is actually producing minified htm/html that leads Apple Books to complain about corruption.
-            // Not sure whose fault it is.
             "svg" | "xml" => {
                 Command::new("minify")
                     .arg(path)
@@ -109,7 +109,7 @@ fn minify(tmpdir: &TempDir, verbose: &bool) {
             // XXX: Upstream minify-cli doesn't currently infer mimetypes for opf and xhtml.
             // The correct mimetype for xhtml is text/xhtml+xml, but text/xml works fine.
             // My own extracted minify-cli at https://github.com/joshuarli/minify-cli supports this.
-            "opf" | "xhtml" => {
+            "opf" => {
                 Command::new("minify")
                     .arg("--mime=text/xml")
                     .arg(path)
@@ -117,6 +117,9 @@ fn minify(tmpdir: &TempDir, verbose: &bool) {
                     .arg(path)
                     .output()
                     .unwrap();
+            }
+            "html" | "xhtml" => {
+                htmls.push(path.to_owned());
             }
             "jpeg" | "jpg" => {
                 jpgs.push(path.to_owned());
@@ -145,11 +148,23 @@ fn minify(tmpdir: &TempDir, verbose: &bool) {
 
     let mut workers = Vec::new();
 
+    if !htmls.is_empty() {
+        workers.push(thread::spawn(|| {
+            // TODO: Size reporting.
+            let cfg = &minify_html::Cfg { minify_js: false };
+            for html in htmls {
+                // .expect("Failed to read ...")
+                let mut buf = fs::read(&html).unwrap();
+                minify_html::truncate(&mut buf, cfg).unwrap();
+                fs::write(html, buf).unwrap();
+            }
+        }));
+    }
+
     if !jpgs.is_empty() {
         workers.push(thread::spawn(|| {
             // TODO: Size reporting.
             // TODO: Do we need to guard against exceeding exec length limit?
-            println!("jpegoptim thread spawned");
             let mut jpegoptim = Command::new("jpegoptim");
             jpegoptim
                 .arg("--strip-all")
@@ -164,7 +179,6 @@ fn minify(tmpdir: &TempDir, verbose: &bool) {
         workers.push(thread::spawn(|| {
             // TODO: Size reporting.
             // TODO: Do we need to guard against exceeding exec length limit?
-            println!("pngquant thread spawned");
             let mut pngquant = Command::new("pngquant");
             pngquant
                 .arg("--skip-if-larger")
