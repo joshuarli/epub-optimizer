@@ -5,13 +5,17 @@ authors = ["Joshua Li <josh@jrl.ninja>"]
 license = "ISC"
 
 [dependencies]
-pico-args = { version = "0.3", default-features = false }
-fastrand = { version = "1.2.3", default-features = false }
-walkdir = { version = "2.3", default-features = false }
-minify-html = { version = "0.2.6", default-features = false }
+walkdir = { version = "~2", default-features = false }
+minify-html = { version = "~0.3", default-features = false }
 
-# Temporarily pinned to 7f3b39f until new version is released.
-zip = { git = "https://github.com/mvdnes/zip-rs", rev = "7f3b39f", default-features = false, features = ["deflate"] }
+# I barely use any of pico-args APIs. There are more featureful releases but ~0.2 is good.
+pico-args = { version = "~0.2", default-features = false }
+
+# fastrand 1.2.3 is the last version that uses a faster PCG variant (PCG XSH RS 64/32).
+fastrand = { version = "=1.2.3", default-features = false }
+
+# Temporarily pinned to a decent sha until ~0.6 is released.
+zip = { git = "https://github.com/mvdnes/zip-rs", rev = "97fe9d5", default-features = false, features = ["deflate"] }
 
 [[bin]]
 name = "epub-optimizer"
