@@ -1,4 +1,3 @@
-extern crate minify_html;
 extern crate pico_args;
 extern crate walkdir;
 
@@ -75,7 +74,6 @@ fn minify(tmpdir: &TempDir, _verbose: &bool) {
     let pwd = env::current_dir().unwrap();
     env::set_current_dir(tmpdir.path()).unwrap();
 
-    let mut htmls = Vec::new();
     let mut jpgs = Vec::new();
     let mut pngs = Vec::new();
 
@@ -100,9 +98,9 @@ fn minify(tmpdir: &TempDir, _verbose: &bool) {
             // TODO: "svg" | "xml" | "opf"
             // This used to be https://github.com/tdewolff/minify (via joshuarli/minify-cli)
             // but it's just really painful to exec a heavy go binary.
-            "html" | "xhtml" => {
-                htmls.push(path.to_owned());
-            }
+            // "html" | "xhtml"
+            // Using minify or wilsonzlin/minify-html results in corruption (Apple Books, Thorium)
+            // TODO: I'll look into this in the future. Low priority; HTML minification barely saves any space.
             "jpeg" | "jpg" => {
                 jpgs.push(path.to_owned());
             }
@@ -116,19 +114,6 @@ fn minify(tmpdir: &TempDir, _verbose: &bool) {
     }
 
     let mut workers = Vec::new();
-
-    if !htmls.is_empty() {
-        workers.push(thread::spawn(|| {
-            // TODO: Size reporting.
-            let cfg = &minify_html::Cfg { minify_js: false };
-            for html in htmls {
-                // .expect("Failed to read ...")
-                let mut buf = fs::read(&html).unwrap();
-                minify_html::truncate(&mut buf, cfg).unwrap();
-                fs::write(html, buf).unwrap();
-            }
-        }));
-    }
 
     if !jpgs.is_empty() {
         workers.push(thread::spawn(|| {

@@ -6,7 +6,6 @@ license = "ISC"
 
 [dependencies]
 walkdir = { version = "~2", default-features = false }
-minify-html = { version = "~0.3", default-features = false }
 
 # I barely use any of pico-args APIs. There are more featureful releases but ~0.2 is good.
 pico-args = { version = "~0.2", default-features = false }
